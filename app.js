@@ -4,12 +4,20 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+var session = require('express-session');
+var flash = require('connect-flash');
+var cassandra = require('cassandra-driver');
 
 var routes = require('./routes/index');
 var doctors = require('./routes/doctors');
 var categories = require('./routes/categories');
 
 var app = express();
+
+var client = new cassandra.Client({contactPoints:['127.0.0.1']});
+client.connect(function(err, result{
+	console.log("Cassandra Connected");
+});
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -22,6 +30,27 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(session({
+  secret: 'secret',
+  saveUninitialized: true,
+  resave:true
+}));
+
+app.use(flash());
+app.use(function(req, res, next){
+  res.locals.messages = require('express-messages')(req, res);
+  next();
+});
+
+var query = "SELECT * FROM findadoc.categories";
+  client.execute(query, [], function(err, results){
+    if(err){
+      res.status(404).send({msg: err});
+    } else {
+     app.locals.cats = results.rows;
+    }
+  });
 
 app.use('/', routes);
 app.use('/doctors', doctors);
@@ -49,7 +78,7 @@ if (app.get('env') === 'development') {
 }
 
 // production error handler
-// no stacktraces leaked to user
+// no stacktraces will be leaked to users
 app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render('error', {
