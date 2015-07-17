@@ -9,7 +9,8 @@ block content
   div
    label Category: 
    select(name='category')
-    option(value='General') General
+    each category, i in categories
+     option(value='#{category.name}') #{category.name}
   div
    label Accepting New Patients: 
    select(name='new_patients')
